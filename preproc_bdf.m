@@ -256,7 +256,7 @@ for isub = 1:nsub
 	    if (~isempty(low_cutoff) || ~isempty(high_cutoff)) && ~isempty(chan_idxs)
 	      
 	      fprintf('Filtering %d channels of type: %s\n', length(chan_idxs), upper(chantype));	  
-	      try filt_order = params.eeglab.filter.filt_order; catch filt_order = []; ...
+	      try filt_order = params.eeglab.filter.(chantype).filt_order; catch filt_order = []; ...
 		  end
 	      
 	      % Filter data  - do highpass and low-pass in separate stages to avoid
