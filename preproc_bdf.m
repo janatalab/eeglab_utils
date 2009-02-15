@@ -8,18 +8,18 @@ function out_st = preproc_bdf(data_st,params)
 % If preproc_bdf is called with 'get_default_params', a params structure is
 % returned that lists all of the fields that can be set in order to control the
 % behavior of this function.
+%
+% NOTE: If you encounter strange problems reading event data correctly from
+% the BDF files, it might be due to using a problematic version of sopen()
+% which is part of the Biosig routines. To solve this problem, add
+% '~/svn/public/matlab/eeg/fixes/' to your path
 
 % 05/20/07 Petr Janata - started script
 % 07/29/08 Petr Janata - added support for finding bdf directories buried
 %                        within session directories 
 
 % Initialize EEGLAB paths
-eeglab('initpaths')
-
-% Make sure we are using a clean copy of Biosig's sopen(). Hopefully this can
-% be removed at some point when EEGLAB uses Biosig's updated way of reading
-% event data in BDF files
-addpath('/afs/cmb.ucdavis.edu/share/matlab/janata/eeg/fixes/')
+eeglab('nogui')
 
 if ischar(data_st) && any(ismember(data_st,{'get_default_params','getDefaultParams'}))
   out_st = get_default_params;
@@ -79,8 +79,8 @@ for isub = 1:nsub
     % Check to see if bdf directory exists at this level or if it is buried in
     % session directories
     if isempty(bdf_paths)
-      fprintf(['Could not locate bdf directory in subject directory\n' ...
-	'Checking for session directories ...\n']);
+      fprintf(['Could not locate bdf directory in subject directory: %s\n' ...
+	'Checking for session directories ...\n'], subject_path);
       sesslist = dir(fullfile(subject_path,'session*'));
       if length(sesslist) > 0
 	fprintf('Found %d session directories\n', length(sesslist));
