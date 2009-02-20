@@ -10,7 +10,7 @@ function out_st = eeglab_ica(data_st,params)
 
 % Make sure that EEGLAB variables and paths have been initialized. This will
 % pop-up an EEGLAB window if none currently exists
-eeglab('initpaths')
+eeglab('nogui')
 
 out_st = ensemble_init_data_struct;
 
