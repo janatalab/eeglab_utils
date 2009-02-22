@@ -7,6 +7,8 @@ function out_st = eeglab_ica(data_st,params)
 % or contains the EEG structures themselves. 
 
 % 12/03/07 Petr Janata
+% 02/22/09 PJ - Improved subsampling of original data in the event that the
+% number of points in the data exceed maximum allowed for ICA.
 
 % Make sure that EEGLAB variables and paths have been initialized. This will
 % pop-up an EEGLAB window if none currently exists
@@ -47,13 +49,47 @@ for isub = 1:nsub
   try 
     EEG = pop_loadset('filename',[subid fstub '.set'],'filepath',set_path);
     
+    % Deal with the situation in which we need/want to subdivide the data
+    % that we train on
     try max_samps = params.ica.max_samps; catch max_samps = EEG.pnts; end
+    try num_segments = params.ica.num_segments; catch num_segments = 1; end
     
-    start_samp = 1;
-    stop_samp = min(EEG.pnts, max_samps);
-    tmpdata = EEG.data;
-    EEG.data = EEG.data(:,start_samp:stop_samp);
-    EEG.pnts = stop_samp-start_samp+1;
+    if max_samps < EEG.pnts
+      subsample = true;
+    else
+      subsample = false;
+    end
+    
+    if subsample
+      fprintf('Number of points in data exceeds limit for ICA algorithm\n')
+      fprintf('Sampling data from %d segments\n', num_segments);
+      
+      tmpdata = EEG.data; % make a copy of the data
+      EEG.data = []; % clear out the existing data
+      segsize_in_orig = fix(EEG.pnts/num_segments); % size of subdivisions in original data
+      max_samps_per_seg = fix(max_samps/num_segments);
+      fprintf('%d samples per segment\n', max_samps_per_seg);
+      
+      fprintf('Segment\tStartSamp\tStopSamp\n');
+      for iseg = 1:num_segments
+        % Figure out range of possible start samples for this segment
+        min_seg_start = (iseg-1)*segsize_in_orig+1;
+        max_seg_start = iseg*segsize_in_orig-max_samps_per_seg+1;
+        
+        % Choose a random starting location within the current segment
+        start_samp = min_seg_start+fix(rand*(max_seg_start-min_seg_start));
+        stop_samp = start_samp+max_samps_per_seg-1;
+
+        fprintf('%d\t%d\t%d\n', iseg, start_samp, stop_samp);
+        
+        % Add the current chunk to the larger chunk, making sure to remove
+        % the local baseline
+        EEG.data = [EEG.data rmbase(tmpdata(:,start_samp:stop_samp))];
+        
+      end % for iseg
+      EEG.pnts = size(EEG.data,2);      
+    end % if max_samps > EEG.pnts && num_segments > 1
+    
     keyvals = {};
     check_ica_params = {'lrate'};
     for ip = 1:length(check_ica_params)
@@ -66,8 +102,10 @@ for isub = 1:nsub
     EEG = pop_runica(EEG,'runica',keyvals{:});
     
     % Paste the original EEG data back in
-    EEG.data = tmpdata;
-    EEG.pnts = size(tmpdata,2);
+    if subsample
+      EEG.data = tmpdata;
+      EEG.pnts = size(tmpdata,2);
+    end
     
     % Check and save the ICA information to the same file
     EEG = eeg_checkset(EEG);

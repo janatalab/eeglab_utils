@@ -62,7 +62,7 @@ for isub = 1:nsub
   try sinfo = params.sinfo; catch sinfo = []; end
 
   %try
-    fprintf('\nProcessing subject: %s\n', subid);
+    fprintf('\nProcessing subject (%d/%d): %s\n', isub, nsub, subid);
     
     try sinfo_idx = strmatch(subid,{sinfo.id}); catch sinfo_idx = []; end
 
