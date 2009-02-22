@@ -61,7 +61,7 @@ for isub = 1:nsub
   % See if a sinfo structure was passed in
   try sinfo = params.sinfo; catch sinfo = []; end
 
-  try
+  %try
     fprintf('\nProcessing subject: %s\n', subid);
     
     try sinfo_idx = strmatch(subid,{sinfo.id}); catch sinfo_idx = []; end
@@ -153,7 +153,8 @@ for isub = 1:nsub
 	fprintf('Loading BDF data using pop_biosig from file: %s\n', bdffname);
 	EEG = pop_biosig(bdffname, ...
 	    'rmeventchan', params.bdf.rmeventchan, ...
-	    'blockrange', params.bdf.blockrange);
+	    'blockrange', params.bdf.blockrange, ...
+      'ref', params.bdf.refchan);
 	
 	%
 	% Attach the electrode location information
@@ -204,14 +205,21 @@ for isub = 1:nsub
 	try reref = params.eeglab.reref; catch reref = false; end
 	if reref
 	  fprintf('Re-referencing the data to be average reference\n');
-	  EEG = pop_reref( EEG, []); 
+    if ~isempty(params.bdf.refchan)
+      refloc{1} = EEG.chanlocs(params.bdf.refchan).labels;
+      refloc{2} = EEG.chanlocs(params.bdf.refchan).theta;
+      refloc{3} = EEG.chanlocs(params.bdf.refchan).radius;
+      EEG = pop_reref( EEG, [], 'refloc', refloc);
+    else
+      EEG = pop_reref( EEG, []);
+    end
 	end
 
 	% Remove the offset of each channel
 	try remove_dc = params.eeglab.remove_dc; catch remove_dc = true; end
 	if remove_dc
 	  fprintf('Removing the offset from each channel ...\n');
-	  EEG.data = detrend(EEG.data','constant')';
+	  EEG.data = single(detrend(double(EEG.data'),'constant'))';
 	end
 	
 	%
@@ -262,12 +270,19 @@ for isub = 1:nsub
 	      % Filter data  - do highpass and low-pass in separate stages to avoid
 	      % numerical problems
 	      if low_cutoff
+          if isempty(filt_order)
+            try filt_order = params.eeglab.filter.(chantype).filt_order_multiplier*fix(EEG.srate/low_cutoff);
+            catch
+              filt_order = [];
+            end
+          end
+              
 		EEG.data(chan_idxs,:) = eegfilt(EEG.data(chan_idxs,:), EEG.srate, ...
 		    low_cutoff, 0, 0, filt_order);
 	      end
 	      if high_cutoff
 		EEG.data(chan_idxs,:) = eegfilt(EEG.data(chan_idxs,:), EEG.srate, ...
-		    0, high_cutoff, 0, filt_order);
+		    0, high_cutoff, 0, []);
 	      end
 	    end % if low_cutoff | high_cutoff
 	  end % for itype=
@@ -283,7 +298,7 @@ for isub = 1:nsub
 	  if save_set
 	    pop_saveset(EEG, 'filename', curr_fname, 'filepath', set_path, ...
 		'check', 'on', ...
-		'savemode', 'onefile');
+		'savemode', params.eeglab.savemode);
 	  end
 	end % if merge_sets
 
@@ -299,7 +314,7 @@ for isub = 1:nsub
 	EEG = pop_mergeset(ALLEEG,1:length(ALLEEG));
 	pop_saveset(EEG, 'filename', curr_fname, 'filepath', set_path, ...
 	    'check', 'on', ...
-	    'savemode', 'onefile');
+	    'savemode', params.eeglab.savemode);
 	out_st.data{outcols.subject_id}{end+1,1} = subid;
 	out_st.data{outcols.filenum}(end+1,1) = 1;
 
@@ -310,9 +325,9 @@ for isub = 1:nsub
 	end
       end
     end % for idir=
-  catch
-    fprintf('Processing of data for %s failed. Skipping ...\n', subid);
-  end % try
+%  catch
+%    fprintf('Processing of data for %s failed. Skipping ...\n', subid);
+%  end % try
 end % for isub
 
 end % preproc_bdf
@@ -346,6 +361,7 @@ function params = get_default_params
   
   params.bdf.remove_chans = [];
   params.bdf.keep_chans = [];
+  params.bdf.refchan = [];
   params.eeglab.merge_sets = false;  % merge EEG sets
   
   params.eeglab.chanlocs.attach = false;
@@ -363,6 +379,7 @@ function params = get_default_params
   params.eeglab.filter.eeg.low_cutoff = [0.5];
   params.eeglab.filter.eeg.high_cutoff = [128];
   params.eeglab.filter.eeg.filt_order = [];
+  params.eeglab.filter.eeg.filt_order_multiplier = 1;
   
   params.eeglab.filter.gsr.chan_labels = biosemi_chan_labels('gsr');
   params.eeglab.filter.gsr.low_cutoff = [];
@@ -388,6 +405,8 @@ function params = get_default_params
   params.eeglab.save.set = true;
   params.eeglab.save.filtered = true;
   params.eeglab.save.clobber = 1;
+  
+  params.eeglab.savemode = 'twofiles';  % twofiles creates .set and .dat, whereas onefile creates .setp
   
   % Parameters influencing what data should be returned in the data struct. Note
   % that returning the entire EEG structure, as compared with only the filename,
