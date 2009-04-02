@@ -1,0 +1,1 @@
+function g = g_perrin(m,x)% function g=g_perrin(m,x);% Perrin function g_m(x)% T Ferree at EGI% Created 7/30/2001nmax = 30;p = LegendreP(nmax,x); % p goes [1,nmax+1] for Legendre indices [0,nmax]g = 0;for n = 1:nmax	g = g + (2*n+1)*p(n+1)/(n*(n+1))^m; % shift index p(n+1)endg = g / (4*pi);

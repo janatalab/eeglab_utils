@@ -1,0 +1,1 @@
+function h=h_perrin(m,x);% function h=h_perrin(m,x);% Perrin function h_m(x)% T Ferree @ EGI% Created 12/19/2001% Last revised 2/17/2006nmax=100;p = LegendreP(nmax,x); % p goes [1,nmax+1] for Legendre indices [0,nmax]h=0;for n=1:nmax	h = h + (2*n+1)*p(n+1)/(n*(n+1))^(m-1); % shift index p(n+1)endh=-h/(4*pi);

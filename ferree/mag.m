@@ -1,0 +1,1 @@
+function m=mag(v)% function m=mag(v)% Computes magnitude of a cartesian 3-vector% T Ferree at EGI% revised 7/29/99m=sqrt(v(1)*v(1)+v(2)*v(2)+v(3)*v(3));
