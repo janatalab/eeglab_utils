@@ -17,6 +17,14 @@ function out_st = preproc_bdf(data_st,params)
 % 05/20/07 Petr Janata - started script
 % 07/29/08 Petr Janata - added support for finding bdf directories buried
 %                        within session directories 
+% 05/12/09 Fred Barrett - attaching bdf file header (returned by sopen) to
+% the EEG data structure, in EEG.etc.bdfhdr. This contains information that
+% may be useful or vital for later processing and interpretation of SCR
+% (and other) signals (for instance, bdfhdr.PhysDim)
+% 05/13/09 Fred Barrett - added mechanism to convert SCR signal from Ohms or
+% nanosiemens to microsiemens. Older versions of BioSemi hardware save SCR
+% data in Ohms, newer versions save SCR data in nanosiemens, but the standard
+% dimension with which SCR is discussed is microsiemens (or micromhos)
 
 % Initialize EEGLAB paths
 eeglab('nogui')
@@ -155,7 +163,10 @@ for isub = 1:nsub
 	    'rmeventchan', params.bdf.rmeventchan, ...
 	    'blockrange', params.bdf.blockrange, ...
       'ref', params.bdf.refchan);
-	
+  
+    % attach bdf header structure to EEG.etc
+	EEG.etc.bdfhdr = bdfhdr;
+    
 	%
 	% Attach the electrode location information
 	%
@@ -285,6 +296,37 @@ for isub = 1:nsub
 		    0, high_cutoff, 0, []);
 	      end
 	    end % if low_cutoff | high_cutoff
+        
+        % convert data to microsiemens? useful for SCR data
+        try c2mS = params.eeglab.filter.(chantype).convert2microsiemens;
+        catch c2mS = 0; end
+        
+        if c2mS
+          %%% convert to microsiemens??
+          %%% the new BioSemi SCR system saves data in nanosiemens
+          %%% the old BioSemi SCR system saves data in Ohms
+          
+          % iterate over channels in chan_idxs
+          for ilci = 1:length(chan_idxs)
+            % Check physical dimension of the current channel
+            lchan = chan_idxs(ilci);
+            etcidx = strmatch(EEG.chanlocs(lchan).labels,...
+                EEG.etc.bdfhdr.Label);
+            if isempty(etcidx), continue, end
+            if ~isempty(strmatch('nS',EEG.etc.bdfhdr.PhysDim(etcidx),...
+                    'exact'))
+              % convert from nS to mS
+              % mS = nS./1000
+              EEG.data(lchan,:) = EEG.data(lchan,:)./10^3;
+            elseif ~isempty(strmatch('Ohm',...
+                    EEG.etc.bdfhdr.PhysDim(etcidx),'exact'))
+              % convert from Ohm to micromho (=mS)
+              % mS = (1./Ohm)*1,000,000
+              EEG.data(lchan,:) = 1./EEG.data(lchan,:);
+              EEG.data(lchan,:) = EEG.data(lchan,:).*10^6;
+            end
+          end % for ilci
+        end % if nS2mS
 	  end % for itype=
 	end
 	
