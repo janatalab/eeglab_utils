@@ -133,13 +133,20 @@ for isub = 1:nsub
       
       % Figure out how many BDF files there are in this directory. There could be
       % multiple files due to multiple runs.  
-      bdflist = dir(fullfile(bdf_path,'*.bdf'));
+      bdfname = sprintf('*%s*.bdf',params.srcfstub) ;
+      if params.sufix
+        bdflist = dir(fullfile(bdf_path,bdfname));%'*%s.bdf');
+      else
+        bdflist = dir(fullfile(bdf_path,'*.bdf')); 
+      end
+      
       num_bdf_files = length(bdflist);
       fprintf('Found %d BDF files in %s\n', num_bdf_files, bdf_path);
+  
       if ~num_bdf_files
 	continue
       end
-      
+     
       for ifile = 1:num_bdf_files
 	bdffname = fullfile(bdf_path,bdflist(ifile).name);
 	[dummy,orig_fstub] = fileparts(bdffname);
@@ -157,7 +164,8 @@ for isub = 1:nsub
 	fprintf('Reading BDF header from file: %s\n', bdffname);
 	bdfhdr = sopen(bdffname);
 	sclose(bdfhdr);
-	
+
+    
 	fprintf('Loading BDF data using pop_biosig from file: %s\n', bdffname);
 	EEG = pop_biosig(bdffname, ...
 	    'rmeventchan', params.bdf.rmeventchan, ...
@@ -396,6 +404,8 @@ end % remove_chans
 
 function params = get_default_params
   params.bdf.file_prefix = '';
+  params.srcfstub = '';
+    params.sufix = 0;
   
   % Options for pop_biosig
   params.bdf.rmeventchan = 'on'; % should the event channel be removed
