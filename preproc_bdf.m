@@ -54,7 +54,6 @@ nsub = length(subids);
 % Probably need some handling here for situations in which we don't have a
 % separate sinfo data structure that has subject specific information about bad
 % channels, etc.
-
 try save_set = params.eeglab.save.set; catch save_set = true; end
 try merge_sets = params.eeglab.merge_sets; catch merge_sets = false; end
 try return_eeg = params.eeglab.return.EEG; catch return_eeg = false; end
@@ -167,6 +166,7 @@ for isub = 1:nsub
 
     
 	fprintf('Loading BDF data using pop_biosig from file: %s\n', bdffname);
+    
 	EEG = pop_biosig(bdffname, ...
 	    'rmeventchan', params.bdf.rmeventchan, ...
 	    'blockrange', params.bdf.blockrange, ...
@@ -340,7 +340,12 @@ for isub = 1:nsub
 	
 	% Update output structure if necessary
 	if merge_sets
-	  ALLEEG(ifile) = EEG;
+	  ALLEEG(ifile) = EEG; %%
+      if save_set
+	    pop_saveset(EEG, 'filename', curr_fname, 'filepath', set_path, ...
+		'check', 'on', ...
+		'savemode', params.eeglab.savemode);
+	  end
 	else
 	  out_st.data{outcols.subject_id}{end+1,1} = subid;
 	  out_st.data{outcols.filenum}(end+1,1) = ifile;
@@ -356,8 +361,7 @@ for isub = 1:nsub
 	  out_st.data{outcols.EEG}{end+1,1} = EEG;
 	else
 	  out_st.data{outcols.EEG}{end+1,1} = fullfile(set_path, curr_fname);
-	end
-	
+    end
       end % for ifile=
       
       if merge_sets && length(ALLEEG)>1
@@ -367,7 +371,6 @@ for isub = 1:nsub
 	    'savemode', params.eeglab.savemode);
 	out_st.data{outcols.subject_id}{end+1,1} = subid;
 	out_st.data{outcols.filenum}(end+1,1) = 1;
-
 	if return_eeg
 	  out_st.data{outcols.EEG}{end+1,1} = EEG;
 	else
@@ -428,7 +431,7 @@ function params = get_default_params
   % are empty, no filtering is performed using pop_eegfilt
   
   params.eeglab.filter.eeg.chan_labels = biosemi_chan_labels('eeg');
-  params.eeglab.filter.eeg.low_cutoff = [0.5];
+  params.eeglab.filter.eeg.low_cutoff = [0.3];
   params.eeglab.filter.eeg.high_cutoff = [128];
   params.eeglab.filter.eeg.filt_order = [];
   params.eeglab.filter.eeg.filt_order_multiplier = 1;

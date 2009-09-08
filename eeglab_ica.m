@@ -54,11 +54,11 @@ for isub = 1:nsub
     try max_samps = params.ica.max_samps; catch max_samps = EEG.pnts; end
     try num_segments = params.ica.num_segments; catch num_segments = 1; end
     
-    if max_samps < EEG.pnts
-      subsample = true;
-    else
-      subsample = false;
-    end
+     if max_samps < EEG.pnts
+       subsample = true;
+     else
+       subsample = false;
+     end
     
     if subsample
       fprintf('Number of points in data exceeds limit for ICA algorithm\n')
@@ -75,7 +75,7 @@ for isub = 1:nsub
         % Figure out range of possible start samples for this segment
         min_seg_start = (iseg-1)*segsize_in_orig+1;
         max_seg_start = iseg*segsize_in_orig-max_samps_per_seg+1;
-        
+       
         % Choose a random starting location within the current segment
         start_samp = min_seg_start+fix(rand*(max_seg_start-min_seg_start));
         stop_samp = start_samp+max_samps_per_seg-1;
@@ -89,7 +89,7 @@ for isub = 1:nsub
       end % for iseg
       EEG.pnts = size(EEG.data,2);      
     end % if max_samps > EEG.pnts && num_segments > 1
-    
+  
     keyvals = {};
     check_ica_params = {'lrate'};
     for ip = 1:length(check_ica_params)
