@@ -25,9 +25,20 @@ function out_st = preproc_bdf(data_st,params)
 % nanosiemens to microsiemens. Older versions of BioSemi hardware save SCR
 % data in Ohms, newer versions save SCR data in nanosiemens, but the standard
 % dimension with which SCR is discussed is microsiemens (or micromhos)
+% 12/11/09 PJ - added dynamic handling of adding biosig directories to path
 
 % Initialize EEGLAB paths
 eeglab('nogui')
+
+% Need to add paths for eeglab/external/biosig subdirectories. These include
+% critical biosig functions such as sopen(). Ideally calling
+% eeglab('nogui') would add these paths
+p = which('eeglab.m');
+p = p(1:findstr(p,'eeglab.m')-1);
+extlist = dir(fullfile(p,'external')); % list external directory
+biosig_idx = strmatch('biosig',{extlist.name});
+biosig_dir = fullfile(p,'external',extlist(biosig_idx).name);
+path(genpath(biosig_dir),path);
 
 if ischar(data_st) && any(ismember(data_st,{'get_default_params','getDefaultParams'}))
   out_st = get_default_params;
