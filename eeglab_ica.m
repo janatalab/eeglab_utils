@@ -100,7 +100,7 @@ for isub = 1:nsub
       end
     end
     EEG = pop_runica(EEG,'runica',keyvals{:});
-    
+  
     % Paste the original EEG data back in
     if subsample
       EEG.data = tmpdata;
@@ -108,8 +108,11 @@ for isub = 1:nsub
     end
     
     % Check and save the ICA information to the same file
+    try destfstub = params.destfstub; catch destfstub = ''; end
+
+    destfname = [subid destfstub '.set'];
     EEG = eeg_checkset(EEG);
-    EEG = pop_saveset (EEG,'savemode','resave');
+    EEG = pop_saveset (EEG,'filepath',set_path,'filename',destfname,'savemode','twofiles');
   catch
     fprintf('Failed to complete ICA analysis for subject: %s\n', subid);
   end
