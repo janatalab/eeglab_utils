@@ -290,9 +290,7 @@ for isub = 1:nsub
         if exist(filtfname,'file') && overwrite_filtered
           fprintf('Overwriting existing file: %s\n', filtfname);
         end
-        if use_chans == params.bdf.use_chans
-            ntypes = 1;
-        end
+
             
         for itype = 1:ntypes
           chantype = typelist{itype};
