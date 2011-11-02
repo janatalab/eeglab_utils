@@ -77,21 +77,47 @@ for isub = 1:nsub
   clear EEG ALLEEG
   
   subid = subids{isub};
-  
-  % See if a sinfo structure was passed in
-  try sinfo = params.sinfo; catch sinfo = []; end
-  
-  %try
   fprintf('\nProcessing subject (%d/%d): %s\n', isub, nsub, subid);
-  
-  try sinfo_idx = strmatch(subid,{sinfo.id}); catch sinfo_idx = []; end
-  
+	
   % Initialize the list of bdf_paths for this subject that we are going to process
   bdf_paths = {};
-  
+	
+	% Construct a default subject path
+  subject_path = fullfile(params.paths.project_root,subid);
+ 	
+	% Make sure we have a valid subject_path
+	if ~exist(subject_path,'dir')
+		fprintf('Cannot find default subject directory: %s\n', subject_path)
+		
+		% See if a sinfo structure was passed in
+		if ~isfield(params,'sinfo')
+			error('Do not have sinfo struct that might contain alternative subject ID mappings')
+		end
+		
+		% Get list of fields
+		sinfoFields = fieldnames(params.sinfo);
+		
+		% Find an alternate path
+		while ~exist(subject_path,'dir')
+			% Check a mapping from ensemble_id to subject_id
+			match_flds = {'ensemble_id', 'subject_id'};
+			haveFieldsMask = ismember(sinfoFields, match_flds);
+			if sum(haveFieldsMask) == length(match_flds);
+				curr_sinfo = params.sinfo(strcmp(subid, {params.sinfo.ensemble_id}));
+				subid = curr_sinfo.subject_id;
+				fprintf('Re-mapped subject ID. New subid: %s\n', subid);
+				subject_path = fullfile(params.paths.project_root,subid);
+				continue
+			end
+			
+			error('Found no alternative subject ID mappings')
+		end % while ~exist(subject_path,'dir')
+	end % ~exist(subject_path,'dir')
+
+	fprintf('Using subject_path: %s\n', subject_path);
+	
   % Read the BDF file
   bdf_prefix = sprintf('%s%s', params.bdf.file_prefix, subid);
-  subject_path = fullfile(params.paths.project_root,subid);
   if exist(fullfile(subject_path,'bdf'))
     bdf_paths = {fullfile(subject_path,'bdf')};
   end
@@ -102,7 +128,7 @@ for isub = 1:nsub
     fprintf(['Could not locate bdf directory in subject directory: %s\n' ...
       'Checking for session directories ...\n'], subject_path);
     sesslist = dir(fullfile(subject_path,'session*'));
-    if length(sesslist) > 0
+    if ~isempty(sesslist)
       fprintf('Found %d session directories\n', length(sesslist));
       
       % Check the sinfo session variable to figure out which sessions to use
@@ -118,6 +144,8 @@ for isub = 1:nsub
           use_sessions = 1;
         end
       end % if isempty(use_sessions)
+		else
+			use_sessions = [];
     end
     
     % Construct the list of bdf_paths
@@ -130,7 +158,7 @@ for isub = 1:nsub
     
     % Make sure we have at least one directory that is a bdf directory
     if isempty(bdf_paths)
-      fprintf('Could not locate any bdf directories for this subject\n');
+      error('Could not locate any bdf directories for this subject\n');
     end
     
   end % if isempty(bdf_paths)
@@ -401,9 +429,7 @@ for isub = 1:nsub
       end
     end
   end % for idir=
-  %  catch
-  %    fprintf('Processing of data for %s failed. Skipping ...\n', subid);
-  %  end % try
+
 end % for isub
 
 end % preproc_bdf
