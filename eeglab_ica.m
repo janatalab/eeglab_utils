@@ -36,7 +36,12 @@ for isub = 1:nsub
   fprintf('%s: Subject (%d/%d): %s\n', mfilename,isub,nsub, subid);
 
   % Deal with finding the file to process
-  subject_path = fullfile(params.path.project_root,subid);
+	if isfield(params.path, 'eegpath')
+		eegpath = params.path.eegpath;
+	else
+		eegpath = params.path.project_root;
+	end
+  subject_path = fullfile(eegpath,subid);
   set_path = fullfile(subject_path,'set');
   try fstub = params.ica.fstub; catch fstub = ''; end
   

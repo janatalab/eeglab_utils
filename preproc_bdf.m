@@ -1,6 +1,26 @@
 function out_st = preproc_bdf(data_st,params)
 % Performs preprocessing of data stored in Biosemi BDF files using EEGLAB
-% routines.
+% routines. Specifically, this routine will:
+%
+% 1) Select or remove channels specified in params.bdf.use_chans and
+%    params.bdf.remove_chans, respectively, using the remove_chans()
+%    subfunction.
+%
+% 2) Attach electrode location information specified in
+%    params.eeglab.chanlocs.locfile. Uses pop_chanedit()
+% 
+% 3) Rereference data to be average reference if desired. Default is to not
+%    rereference. Uses pop_reref()
+%
+% 4) Removes DC offset for each channel. Default is to remove it.
+%
+% 5) Low-pass and high-pass filtering of each channel. Filtering is applied
+%    in two separate calls to eegfilt().
+%
+% 6) If data are SCR data, convert to microsiemens.
+%
+% 7) Merges datasets if multiple BDF files were encountered and they were
+%    designated to be merged.
 %
 % The input data structure (data_st) should contain a variable that contains
 % all of the subject IDs to be processed.
@@ -83,7 +103,12 @@ for isub = 1:nsub
   bdf_paths = {};
 	
 	% Construct a default subject path
-  subject_path = fullfile(params.paths.project_root,subid);
+	if isfield(params.paths,'eegpath')
+		eegpath = params.paths.eegpath;
+	else
+		eegpath = params.paths.project_root;
+	end
+  subject_path = fullfile(eegpath,subid);
  	
 	% Make sure we have a valid subject_path
 	if ~exist(subject_path,'dir')
@@ -106,7 +131,7 @@ for isub = 1:nsub
 				curr_sinfo = params.sinfo(strcmp(subid, {params.sinfo.ensemble_id}));
 				subid = curr_sinfo.subject_id;
 				fprintf('Re-mapped subject ID. New subid: %s\n', subid);
-				subject_path = fullfile(params.paths.project_root,subid);
+				subject_path = fullfile(eegpath,subid);
 				continue
 			end
 			
