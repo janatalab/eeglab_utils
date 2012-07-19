@@ -10,9 +10,12 @@ function EEG = fix_eeg_event_info(EEG)
 if ischar(EEG)
 	if exist(EEG,'file')
 		load(EEG,'-mat');
+		fromFile = 1;
 	else
 		error('Could not locate file: %s', EEG)
 	end
+else
+	fromFile = 0;
 end
 
 % Get the name of the original BDF file
@@ -38,6 +41,16 @@ for iev = 1:numNew
 	% Handle case in which there is no matching event
 	if ~any(latencyMask)
 		fprintf('Found no match for event %d/%d\n', iev, numNew);
+		
+		% Insert the event at the end of the new events structure and also into
+		% the old EEG event structure since that is where it was missing
+		newEvents(end+1).type = bdfEvents(iev).type;
+		newEvents(end).latency = currLatency;
+		oldLatencies = [newEvents.latency];
+		
+		EEG.event(end+1).type = bdfEvents(iev).type;
+		EEG.event(end).latency = currLatency;
+		EEG.event(end).urevent = length(newEvents);
 		continue 
 	end
 	
@@ -70,10 +83,14 @@ for iev = 1:numEvents
 	end
 end % for iev
 
-% Save the modified .set file back out
+% Save the modified .set file back out if we originally read this from a
+% file
 EEG = eeg_checkset(EEG);
-outfname = fullfile(EEG.filepath, EEG.filename);
-fprintf('Saving modified set file: %s\n', outfname);
-save(outfname, 'EEG');
+
+if fromFile
+	outfname = fullfile(EEG.filepath, EEG.filename);
+	fprintf('Saving modified set file: %s\n', outfname);
+	save(outfname, 'EEG');
+end
 
 return

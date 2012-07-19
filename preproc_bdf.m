@@ -99,6 +99,9 @@ for isub = 1:nsub
   subid = subids{isub};
   fprintf('\nProcessing subject (%d/%d): %s\n', isub, nsub, subid);
 	
+	sinfoIdx = find(strcmp(subid, {params.sinfo.subject_id}));
+	curr_sinfo = params.sinfo(sinfoIdx);
+	
   % Initialize the list of bdf_paths for this subject that we are going to process
   bdf_paths = {};
 	
@@ -120,7 +123,7 @@ for isub = 1:nsub
 		end
 		
 		% Get list of fields
-		sinfoFields = fieldnames(params.sinfo);
+		sinfoFields = fieldnames(curr_sinfo);
 		
 		% Find an alternate path
 		while ~exist(subject_path,'dir')
@@ -128,7 +131,6 @@ for isub = 1:nsub
 			match_flds = {'ensemble_id', 'subject_id'};
 			haveFieldsMask = ismember(sinfoFields, match_flds);
 			if sum(haveFieldsMask) == length(match_flds);
-				curr_sinfo = params.sinfo(strcmp(subid, {params.sinfo.ensemble_id}));
 				subid = curr_sinfo.subject_id;
 				fprintf('Re-mapped subject ID. New subid: %s\n', subid);
 				subject_path = fullfile(eegpath,subid);
@@ -157,7 +159,7 @@ for isub = 1:nsub
       fprintf('Found %d session directories\n', length(sesslist));
       
       % Check the sinfo session variable to figure out which sessions to use
-      try use_sessions = sinfo(sinfo_idx).use_session;
+      try use_sessions = curr_sinfo.use_session;
       catch use_sessions = []; end
       
       % If no info about which session to use was found, check to see if
@@ -241,28 +243,27 @@ for isub = 1:nsub
       % attach bdf header structure to EEG.etc
       EEG.etc.bdfhdr = bdfhdr;
       
+			%
+			% Check whether we want to re-read the event information correctly
+			% (bits 9-16)
+			%
+			try reread_events = params.eeglab.fix_eeg_event_info; catch reread_events = 0; end
+			if reread_events
+				EEG = fix_eeg_event_info(EEG);
+			end
+			
       %
       % Deal with removing (un)wanted channels.
-      % The use_chans field lists channels to keep.
+      % The use_chans field lists channels to keep.  This pretty much needs
+      % to include the full set of EEG channels listed in the electrode
+      % location information for the electrode location information to load
+      % properly
+			origChans = EEG.chanlocs;
       try use_chans = params.bdf.use_chans; catch use_chans = []; end
       if ~isempty(use_chans)
         EEG = remove_chans(EEG,use_chans,'keep');
-      end
-      
-      % Remove channels that were inadvertently recorded but are empty.  The list
-      % of these is stored in defs.eeg.extra_chans.  Match them up by comparing
-      % chan labels read from BDF header
-      try remove_chans = params.bdf.remove_chans; catch remove_chans = []; end
-      if ~isempty(remove_chans)
-        EEG = remove_chans(EEG,remove_chans,'remove');
-      end
-      
-      % Remove channels specified as bad for this individual subject
-      try bad_chans = params.sinfo.bad_chans; catch bad_chans = []; end
-      if ~isempty(bad_chans)
-        EEG = remove_chans(EEG,bad_chans,'remove');
-      end
-          
+			end
+			
       %
       % Attach the electrode location information
       %
@@ -273,19 +274,38 @@ for isub = 1:nsub
       if attach_locs
         locfile = params.eeglab.chanlocs.locfile;
         fprintf('Attaching electrode locations from file: %s\n', locfile);
-        %EEG.chanlocs = readlocs(locfile);
+				
         EEG = pop_chanedit(EEG,'load',locfile);
         nchanlocs = length(EEG.chanlocs);
-        
+
         % Make sure that the number of channels for which we have labels matches the
         % actual number of channels
         if EEG.nbchan ~= nchanlocs
           warnmsg = sprintf(['Mismatch between number of channel locations ' ...
             'in data (%d) and location spec file(%d)\n'], EEG.nbchan, nchanlocs);
           warning(warnmsg)
-        end
+				end
+				
+				% Deblank channel labels
+				for ichan = 1:length(EEG.chanlocs)
+					EEG.chanlocs(ichan).labels = strrep(EEG.chanlocs(ichan).labels, ' ', '');
+				end
       end % if attach_locs
-  
+      
+      % Remove channels that were inadvertently recorded but are empty.  The list
+      % of these is stored in defs.eeg.extra_chans.  Match them up by comparing
+      % chan labels read from BDF header
+      try toss_chans = params.bdf.remove_chans; catch toss_chans = []; end
+      if ~isempty(toss_chans)
+        EEG = remove_chans(EEG, toss_chans,'remove');
+      end
+      
+      % Remove channels specified as bad for this individual subject
+      try bad_chans = curr_sinfo.bad_chans; catch bad_chans = []; end
+      if ~isempty(bad_chans)
+				EEG = remove_chans(EEG, bad_chans,'remove');
+			end
+          
       % Re-reference the data to an average reference
       % overwrite unreferenced dataset?
       try reref = params.eeglab.reref; catch reref = false; end
@@ -299,7 +319,7 @@ for isub = 1:nsub
         % reference.
 %         if ~isempty(params.bdf.refchan)
 %             refloc{1} = EEG.chanlocs(params.bdf.refchan).labels;
-%             refloc{2} = EEG.chanlocs(params.bdf.refchan).theta;
+%             reflEEG = pop_chanedit(EEG,'load',locfile,oc{2} = EEG.chanlocs(params.bdf.refchan).theta;
 %             refloc{3} = EEG.chanlocs(params.bdf.refchan).radius;
 %             EEG = pop_reref( EEG, [], 'refloc', refloc);
 %         else
@@ -314,7 +334,9 @@ for isub = 1:nsub
       try remove_dc = params.eeglab.remove_dc; catch remove_dc = true; end
       if remove_dc
         fprintf('Removing the offset from each channel ...\n');
-        EEG.data = single(detrend(double(EEG.data'),'constant'))';
+        EEG.data = single(detrend(double(EEG.data'),'constant'))';        
+				
+
       end
       
       %
@@ -330,8 +352,8 @@ for isub = 1:nsub
           overwrite_filtered = 0; end
       typelist = fieldnames(params.eeglab.filter);
       ntypes = length(typelist);
-      
-      % Construct the putative name for the output file and check to see whether
+
+			% Construct the putative name for the output file and check to see whether
       % it exists.
       filt_stub = sprintf('_filt');
       curr_fname = sprintf('%s%s.set', set_stub,filt_stub);
@@ -412,8 +434,8 @@ for isub = 1:nsub
             end % for ilci
           end % if nS2mS
         end % for itype=
-      end
-      
+			end
+				
       % Update output structure if necessary
       if merge_sets
         ALLEEG(ifile) = EEG; %%
@@ -459,7 +481,7 @@ end % for isub
 
 end % preproc_bdf
 
-function EEG = remove_chans(EEG,chanlist,action)
+function [EEG, remove_chan_idxs] = remove_chans(EEG,chanlist,action)
   if nargin < 3
     action = 'remove';
   end
@@ -469,11 +491,12 @@ function EEG = remove_chans(EEG,chanlist,action)
       retain_chan_idxs = find(~ismember({EEG.chanlocs.labels}, chanlist));
     case 'keep'
       retain_chan_idxs = find(ismember({EEG.chanlocs.labels}, chanlist));
-  end
+	end
   
+	remove_chan_idxs = setdiff(1:size(EEG.data,1),retain_chan_idxs);
   if ~isempty(retain_chan_idxs)
     fprintf('Retaining %d channels ...\n', length(retain_chan_idxs));
-    EEG.data(setdiff(1:size(EEG.data,1),retain_chan_idxs),:) = [];
+    EEG.data(remove_chan_idxs,:) = [];
     EEG.chanlocs =EEG.chanlocs(retain_chan_idxs);
     EEG.nbchan = size(EEG.data,1);
   end
