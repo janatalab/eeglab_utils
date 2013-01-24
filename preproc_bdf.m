@@ -47,6 +47,7 @@ function out_st = preproc_bdf(data_st,params)
 % dimension with which SCR is discussed is microsiemens (or micromhos)
 % 12/11/09 PJ - added dynamic handling of adding biosig directories to path
 % 12/13/09 PJ - rearranged code to accommodate recent changes in pop_reref()
+% 24Jan2013 PJ - added option to detrend the EEG data.
 %
 
 % Initialize EEGLAB paths
@@ -330,13 +331,26 @@ for isub = 1:nsub
        
       end
       
+      % See if we want to detrend the data
+      if isfield(params.eeglab, 'detrend')
+          detrend_eeg = params.eeglab.detrend;
+      else
+          detrend_eeg = false;
+      end
+      
       % Remove the offset of each channel
       try remove_dc = params.eeglab.remove_dc; catch remove_dc = true; end
-      if remove_dc
-        fprintf('Removing the offset from each channel ...\n');
-        EEG.data = single(detrend(double(EEG.data'),'constant'))';        
-				
-
+      if remove_dc || detrend_eeg
+          if detrend_eeg
+              str = '';
+              dtype = 'linear trend';
+          else
+              str = 'constant';
+              dtype = 'offset';
+          end
+          
+        fprintf('Removing the %s from each channel ...\n', dtype);
+        EEG.data = single(detrend(double(EEG.data'),str))';        
       end
       
       %
