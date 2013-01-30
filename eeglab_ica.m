@@ -54,6 +54,9 @@ for isub = 1:nsub
   try 
     EEG = pop_loadset('filename',[subid fstub '.set'],'filepath',set_path);
     
+    % Make sure channel data is appropriately attached
+    EEG = eeglab_check_chaninfo(EEG,params);
+    
     % Deal with the situation in which we need/want to subdivide the data
     % that we train on
     try max_samps = params.ica.max_samps; catch max_samps = EEG.pnts; end

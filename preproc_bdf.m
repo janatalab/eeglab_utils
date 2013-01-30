@@ -511,7 +511,7 @@ function [EEG, remove_chan_idxs] = remove_chans(EEG,chanlist,action)
   if ~isempty(retain_chan_idxs)
     fprintf('Retaining %d channels ...\n', length(retain_chan_idxs));
     EEG.data(remove_chan_idxs,:) = [];
-    EEG.chanlocs =EEG.chanlocs(retain_chan_idxs);
+    EEG.chanlocs(remove_chan_idxs) = [];
     EEG.nbchan = size(EEG.data,1);
   end
 end % remove_chans
