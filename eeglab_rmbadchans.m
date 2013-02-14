@@ -7,6 +7,7 @@ function out_st = eeglab_rmbadchans(data_st,params)
 %
 % 02/14/13 BH - added some code to handel differences in parameter naming 
 %               conventions between current & previous projects
+%             - added parallel computing code for looping over subjects
 
 % Make sure that EEGLAB variables and paths have been initialized. This will
 % pop-up an EEGLAB window if none currently exists
@@ -28,8 +29,13 @@ nsub = length(subids);
 
 fprintf('%s: Processing data for %d subjects\n', mfilename, nsub);
 
-% Loop over subjects
-for isub = 1:nsub
+% Fire up parallel compute pool if possible
+if exist('matlabpool') && ~matlabpool('size') 
+    matlabpool
+end
+
+% Loop over subjects in parallel
+parfor isub = 1:nsub
   subid = subids{isub};
   fprintf('\n%s: Subject (%d/%d): %s\n', mfilename,isub,nsub, subid);
 
@@ -112,4 +118,6 @@ for isub = 1:nsub
   catch
     fprintf('Failed to remove bad channels for subject: %s\n', subid);
   end
-end % for isub=
+end % parfor isub=
+
+matlabpool close
