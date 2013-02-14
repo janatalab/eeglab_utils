@@ -4,6 +4,9 @@ function out_st = eeglab_rmbadchans(data_st,params)
 %
 
 % 02/22/09 PJ - adapted from eeglab_ica
+%
+% 02/14/13 BH - added some code to handel differences in parameter naming 
+%               conventions between current & previous projects
 
 % Make sure that EEGLAB variables and paths have been initialized. This will
 % pop-up an EEGLAB window if none currently exists
@@ -31,7 +34,12 @@ for isub = 1:nsub
   fprintf('\n%s: Subject (%d/%d): %s\n', mfilename,isub,nsub, subid);
 
   % Deal with finding the file to process
-  subject_path = fullfile(params.path.project_root,subid);
+  if isfield(params.path,'datapath')
+      datapath = params.path.datapath;
+  else
+      datapath = params.path.project_root;
+  end
+  subject_path = fullfile(datapath,subid);
   set_path = fullfile(subject_path,'set');
   try srcfstub = params.srcfstub; catch srcfstub = ''; end
   try destfstub = params.destfstub; catch destfstub = ''; end
@@ -42,9 +50,15 @@ for isub = 1:nsub
     continue
   end
   
+  if isfield(params.sinfo,'subject_id')
+      sinfo_subids = {params.sinfo.subject_id};
+  else 
+      sinfo_subids = {params.sinfo.id};
+  end
+  
   try 
     % Find the subject info in the sinfo structure
-    sidx = strmatch(subid,{params.sinfo.id});
+    sidx = strmatch(subid,sinfo_subids);
     
     if isempty(sidx)
       error(sprintf('Subject %s not found in sinfo', subid))
