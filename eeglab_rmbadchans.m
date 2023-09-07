@@ -30,8 +30,8 @@ nsub = length(subids);
 fprintf('%s: Processing data for %d subjects\n', mfilename, nsub);
 
 % Fire up parallel compute pool if possible
-if exist('matlabpool') && ~matlabpool('size') 
-    matlabpool
+if exist('parpool')
+    parpool
 end
 
 % Loop over subjects in parallel
@@ -51,7 +51,7 @@ parfor isub = 1:nsub
   try destfstub = params.destfstub; catch destfstub = ''; end
   
   fname = fullfile(set_path, [subid srcfstub '.set']);
-  if ~exist(fname)
+  if ~(fname)
     fprintf('Could not find file: %s\n', fname);
     continue
   end
@@ -120,4 +120,6 @@ parfor isub = 1:nsub
   end
 end % parfor isub=
 
-matlabpool close
+if exist('parpool')
+    parpool close
+end

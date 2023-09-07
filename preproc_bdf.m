@@ -102,9 +102,12 @@ for isub = 1:nsub
 	
 	sinfoIdx = find(strcmp(subid, {params.sinfo.subject_id}));
 	curr_sinfo = params.sinfo(sinfoIdx);
-	
   % Initialize the list of bdf_paths for this subject that we are going to process
   bdf_paths = {};
+
+  % Initialize the list of session directories containing each of the
+  % corresponding bdf files in bdf_paths
+  bdf_paths_session_map = {};
 	
 	% Construct a default subject path
 	if isfield(params.paths,'eegpath')
@@ -152,6 +155,14 @@ for isub = 1:nsub
   
   % Check to see if bdf directory exists at this level or if it is buried in
   % session directories
+
+  % Check the sinfo session variable to figure out which sessions to use
+  if isfield(curr_sinfo, 'use_session')
+      use_sessions = curr_sinfo.use_session;
+  else
+      use_sessions = []; 
+  end
+
   if isempty(bdf_paths)
     fprintf(['Could not locate bdf directory in subject directory: %s\n' ...
       'Checking for session directories ...\n'], subject_path);
@@ -159,9 +170,6 @@ for isub = 1:nsub
     if ~isempty(sesslist)
       fprintf('Found %d session directories\n', length(sesslist));
       
-      % Check the sinfo session variable to figure out which sessions to use
-      try use_sessions = curr_sinfo.use_session;
-      catch use_sessions = []; end
       
       % If no info about which session to use was found, check to see if
       % there is only one session and use that by default
@@ -177,10 +185,13 @@ for isub = 1:nsub
     end
     
     % Construct the list of bdf_paths
+
     for isess = 1:length(use_sessions)
-      tmppath = fullfile(subject_path, sprintf('session%d', use_sessions(isess)), 'bdf');
+        session_stub = sprintf('session%d', use_sessions(isess));
+      tmppath = fullfile(subject_path, session_stub, 'bdf');
       if exist(tmppath)
         bdf_paths{isess} = tmppath;
+        bdf_paths_session_map{isess} = session_stub;
       end
     end % for isess
     
@@ -225,8 +236,16 @@ for isub = 1:nsub
       else
         set_stub = sprintf('%s_allbdf', subid);
       end
-      set_path = fullfile(subject_path,'set'); check_dir(set_path);
-      curr_fstub = set_stub;
+
+      % Determine the directory into which we'll put the resulting .set
+      % file
+      if ~isempty(use_sessions) && params.eeglab.use_session_dirs
+        set_path = fullfile(subject_path, bdf_paths_session_map{isess}, 'set');
+      else
+        set_path = fullfile(subject_path,'set'); 
+      end
+      check_dir(set_path); % make sure the output directory exists
+      %curr_fstub = set_stub;
       
       % Read the BDF header
       fprintf('Reading BDF header from file: %s\n', bdffname);
@@ -303,10 +322,20 @@ for isub = 1:nsub
       
       % Remove channels specified as bad for this individual subject
       try bad_chans = curr_sinfo.bad_chans; catch bad_chans = []; end
+
+       % Check whether any session-specific bad channels have been
+       % specified
+       if isempty(bad_chans) 
+
+       end
+
+
       if ~isempty(bad_chans)
-				EEG = remove_chans(EEG, bad_chans,'remove');
+           EEG = remove_chans(EEG, bad_chans,'remove');
 			end
           
+
+
       % Re-reference the data to an average reference
       % overwrite unreferenced dataset?
       try reref = params.eeglab.reref; catch reref = false; end
@@ -371,7 +400,7 @@ for isub = 1:nsub
       % it exists.
       filt_stub = sprintf('_filt');
       curr_fname = sprintf('%s%s.set', set_stub,filt_stub);
-      filtfname = fullfile(set_path, curr_fname)
+      filtfname = fullfile(set_path, curr_fname);
       
       % Check to see if the file already exists
       if ~exist(filtfname,'file') || overwrite_filtered
@@ -529,6 +558,7 @@ function params = get_default_params
   params.bdf.keep_chans = [];
   params.bdf.refchan = [];
   params.eeglab.merge_sets = false;  % merge EEG sets
+  params.eeglab.use_session_dirs = false;
   
   params.eeglab.chanlocs.attach = false;
   params.eeglab.chanlocs.locfile = '';

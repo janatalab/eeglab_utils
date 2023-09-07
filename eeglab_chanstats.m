@@ -53,8 +53,8 @@ for isub = 1:nsub
     k = zeros(numchans,1);
 
     % Fire up parallel compute pool if possible
-    if exist('matlabpool') && ~matlabpool('size') 
-        matlabpool
+    if exist('parpool') %&& ~parpool('threads') 
+        parpool
     end
     
     % calculate desired channel stats
@@ -78,6 +78,6 @@ for isub = 1:nsub
   
 end % for isub=
 
-matlabpool close
+parpool close
 
 out = [];

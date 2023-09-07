@@ -30,24 +30,30 @@ nsub = length(subids);
 
 fprintf('%s: Processing data for %d subjects\n', mfilename, nsub);
 
+
 % Loop over subjects
 for isub = 1:nsub
   subid = subids{isub};
   fprintf('%s: Subject (%d/%d): %s\n', mfilename,isub,nsub, subid);
+
 
   % Deal with finding the file to process
 	if isfield(params.path, 'eegpath')
 		eegpath = params.path.eegpath;
 	else
 		eegpath = params.path.project_root;
-	end
+    end 
   subject_path = fullfile(eegpath,subid);
+
   set_path = fullfile(subject_path,'set');
+     
   try fstub = params.ica.fstub; catch fstub = ''; end
   
   fname = fullfile(set_path, [subid fstub '.set']);
-  if ~exist(fname)
+  
+  if isempty(fname) || ~exist(fname)
     fprintf('Could not find file: %s\n', fname);
+   
     continue
   end
   
@@ -118,10 +124,10 @@ for isub = 1:nsub
     % Check and save the ICA information to the same file
     try destfstub = params.destfstub; catch destfstub = ''; end
 
-    destfname = [subid destfstub '.set'];
-    EEG = eeg_checkset(EEG);
-    EEG = pop_saveset (EEG,'filepath',set_path,'filename',destfname,'savemode','twofiles');
-  catch
-    fprintf('Failed to complete ICA analysis for subject: %s\n', subid);
-  end
+        destfname = [subid destfstub '.set'];
+        EEG = eeg_checkset(EEG);
+        EEG = pop_saveset (EEG,'filepath',set_path,'filename',destfname,'savemode','twofiles');
+      catch
+        fprintf('Failed to complete ICA analysis for subject: %s\n', subid);
+      end
 end % for isub=
